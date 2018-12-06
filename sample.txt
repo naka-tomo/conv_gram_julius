@@ -1,0 +1,9 @@
+[GRAMMAR]
+bring: $objects ‚ð‚à‚Á‚Ä‚«‚Ä
+hello: ‚±‚ñ‚É‚¿‚Í
+
+[NOUN]
+$objects
+obj1: ‚¨‚¿‚á
+obj2: ‚¨‚©‚µ
+
