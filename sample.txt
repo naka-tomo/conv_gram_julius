@@ -1,9 +1,9 @@
 [GRAMMAR]
-bring: $objects ‚ð‚à‚Á‚Ä‚«‚Ä
+bring: $slot_objects ‚ð‚à‚Á‚Ä‚«‚Ä
 hello: ‚±‚ñ‚É‚¿‚Í
 
 [NOUN]
-$objects
+$slot_objects
 obj1: ‚¨‚¿‚á
 obj2: ‚¨‚©‚µ
 

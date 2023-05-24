@@ -4,7 +4,7 @@ import os
 import sys
 import re
 
-nounIdFinder = re.compile( "\$noun[A-z0-9-]*" )
+slotIdFinder = re.compile( "\$slot[A-z0-9-]*" )
 
 def ToHiragana( str ):
     hiragana = str
@@ -26,9 +26,9 @@ def Normalize( str ):
     str = str.replace( "\n" , "" )
     str = str.replace( "\r" , "" )
 
-    # nounidの両端にスペースを入れる
-    for nounId in nounIdFinder.findall( str ):
-        str = str.replace( nounId , " " + nounId + " " )
+    # slotidの両端にスペースを入れる
+    for slotId in slotIdFinder.findall( str ):
+        str = str.replace( slotId , " " + slotId + " " )
 
     # 句読点は全て半角スペースにする
     str = str.replace( u"　" , " " )
@@ -54,7 +54,7 @@ def Gram2ID( id , words , idDict ):
 
     for w in words:
         if w[0]=="$":
-            # $noun_**の場合は$を覗いて登録
+            # $slot_**の場合は$を覗いて登録
             idGram.append(w[1:])
         else:
             if w in idDict:
@@ -75,11 +75,11 @@ def LoadGram( filename ):
     lines = [ l for l in lines ]
 
     # grammars : [ (定型文id, 単語のリスト, 単語idのリスト), ... ]
-    # nouns : { 単語クラス : (単語ID, 単語文字列, 音素列), ... }
+    # slots : { 単語クラス : (単語ID, 単語文字列, 音素列), ... }
     # idDict : { 単語文字列 : (単語ID, 音素表記) }
     # utterance : [ (発話id, 文章), ... ]
     grammars = []
-    nouns = {}
+    slots = {}
     #idDict = { "<s>" : ("NS_B","silB") , "</s>" : ("NS_E","silE") }
     idDict = {}
     utterances = []
@@ -103,7 +103,7 @@ def LoadGram( filename ):
                 words = Normalize(gram).strip().split()
                 gramID = Gram2ID( id , words , idDict )
                 grammars.append( [id,words,gramID] )
-                print id,gram," ".join(gramID)
+                print( id,gram," ".join(gramID) )
 
     # [NOUN]を読み込み
     start = False
@@ -120,39 +120,39 @@ def LoadGram( filename ):
                 break
             elif "$" in line:
                 classID = line.strip()[1:]
-                nouns[classID] = []
+                slots[classID] = []
 
             if ":" in line:
-                id,noun = line.split(":")
+                id,slot = line.split(":")
                 id = id.strip()
-                noun = Normalize(noun).strip()
-                onso = ToOnso(noun)
-                nouns[classID].append( [id,noun,onso] )
-                print classID ,id, noun, onso
+                slot = Normalize(slot).strip()
+                onso = ToOnso(slot)
+                slots[classID].append( [id,slot,onso] )
+                print( classID ,id, slot, onso )
 
 
 
-    return grammars,nouns,idDict
+    return grammars,slots,idDict
 
-def SaveJuliusGram( grammars , nouns, idDict, basename ):
+def SaveJuliusGram( grammars , slots, idDict, basename ):
 
-    nounClassUsedInGram = []
+    slotClassUsedInGram = []
     f = codecs.open( basename + ".grammar" , "w" , "sjis" )
     for g in grammars:
         f.write( "S : " + " ".join(g[2]) + "\n" )
         for w in g[2]:
-            if w.find("noun_")==0:
-                nounClassUsedInGram.append( w )
+            if w.find("slot_")==0:
+                slotClassUsedInGram.append( w )
     f.close()
 
     f = codecs.open( basename + ".voca" , "w" , "sjis" )
-    for nounClass in nouns.keys():
-        if not nounClass in nounClassUsedInGram:
+    for slotClass in slots.keys():
+        if not slotClass in slotClassUsedInGram:
             continue
 
-        f.write("%" + nounClass + "\n" )
-        for nounInfo in nouns[nounClass]:
-            f.write( nounInfo[1] + "\t" + nounInfo[2] + "\n" )
+        f.write("%" + slotClass + "\n" )
+        for slotInfo in slots[slotClass]:
+            f.write( slotInfo[1] + "\t" + slotInfo[2] + "\n" )
         f.write("\n")
 
     for w in idDict.keys():
@@ -168,27 +168,27 @@ def SaveJuliusGram( grammars , nouns, idDict, basename ):
     f.close()
 
 
-word2nounID = {}
+word2slotID = {}
 classID2Name = {}
 def CompileGrammar( txtgram, juliusgram ):
-    global word2nounID
+    global word2slotID
     global classID2Name
 
-    word2nounID = {}
+    word2slotID = {}
     classID2Name = {}
 
 
-    grammars,nouns,idDict = LoadGram(txtgram)
-    SaveJuliusGram( grammars , nouns, idDict, juliusgram )
+    grammars,slots,idDict = LoadGram(txtgram)
+    SaveJuliusGram( grammars , slots, idDict, juliusgram )
 
 
     success = True
     p = os.popen( ".\\perl\\perl.exe mkdfa.pl " + juliusgram, "r" )
     for line in p:
-        print line
+        print(line)
         if "no .dfa or .dict file generated" in line:
             success = False
-            print "error"
+            print("error")
     p.close()
 
     classID2Name = {}
@@ -199,14 +199,14 @@ def CompileGrammar( txtgram, juliusgram ):
         className = line[1]
         classID2Name[classid] = className
 
-    word2nounID = {}
-    for className in nouns.keys():
-        for nounInfo in nouns[className]:
-            word2nounID[(className,nounInfo[1])] = nounInfo[0]
-            print className+"."+nounInfo[1]
+    word2slotID = {}
+    for className in slots.keys():
+        for slotInfo in slots[className]:
+            word2slotID[(className,slotInfo[1])] = slotInfo[0]
+            print(className+"."+slotInfo[1])
 
-    print word2nounID
-    print classID2Name
+    print(word2slotID)
+    print(classID2Name)
 
     return success
 
@@ -217,27 +217,27 @@ def GetGramID( classIDs ):
             return className.replace("B_" , "" )
     return ""
 
-def GetNounID( classIDs, words ):
-    nounIDs = []
-    nounStrs = []
+def GetSlotID( classIDs, words ):
+    slotIDs = []
+    slotStrs = []
     for cid,w in zip(classIDs,words):
         if cid in classID2Name:
             className = classID2Name[cid]
-            if className.find("noun_")==0:
-                if (className,w) in word2nounID:
-                    nounid = word2nounID[(className,w)]
-                    nounIDs.append(nounid)
-                    nounStrs.append(w)
+            if className.find("slot_")==0:
+                if (className,w) in word2slotID:
+                    slotid = word2slotID[(className,w)]
+                    slotIDs.append(slotid)
+                    slotStrs.append(w)
         else:
-            print cid,"が辞書にない"
+            print( cid,"が辞書にない" )
             return [],[]
 
-    return nounIDs, nounStrs
+    return( slotIDs, slotStrs )
 
 
 def main():
 
-    print CompileGrammar( sys.argv[1], sys.argv[2] )
+    print( CompileGrammar( sys.argv[1], sys.argv[2] ) )
 
 
 
